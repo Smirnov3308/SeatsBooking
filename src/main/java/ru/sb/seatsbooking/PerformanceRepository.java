@@ -6,5 +6,5 @@ import org.springframework.security.access.prepost.PreAuthorize;
 
 @PreAuthorize("hasRole('ROLE_USER')")
 public interface PerformanceRepository extends PagingAndSortingRepository<Performance, Long> {
-
+    
 }

@@ -17,6 +17,11 @@ const styles = {
         marginBottom: 10,
         height: 'auto',
         overflowY: 'auto'
+    },
+
+    container: {
+        display: 'flex',
+        padding: 5,
     }
 }
 
@@ -24,10 +29,10 @@ class App extends React.Component {
 
     constructor(props) {
         super(props);
-        this.state = {performances: [], attributes: [], pageSize: 10, links: {}};
+        this.state = {performances: [], seats: [], attributes: [], pageSize: 5, links: {}};
         this.updatePageSize = this.updatePageSize.bind(this);
         this.onDelete = this.onDelete.bind(this);
-        this.onUpdate = this.onUpdate.bind(this);
+        this.onBookIt = this.onBookIt.bind(this);
         this.onNavigate = this.onNavigate.bind(this);
     }
 
@@ -72,6 +77,25 @@ class App extends React.Component {
         });
     }
 
+    onBookIt(selectedSeat) {
+        follow(client, root, ['seats']).done(response => {
+            client({
+                method: 'POST',
+                path: response.entity._links.self.href,
+                entity: selectedSeat,
+                headers: {'Content-Type': 'application/json'}
+            })
+            client({method: 'GET', path: '/api/seats'}).done(response => {
+                this.setState({seats: response.entity._embedded.seats});
+            });
+        }, response => {
+            if (response.status.code === 404) {
+                alert('Error, seat already taken');
+            }
+        });
+        client({method: 'DELETE', path: selectedSeat._links.self.href})
+    }
+
     onDelete(performance) {
         client({method: 'DELETE', path: performance._links.self.href}).done(response => {
             this.loadFromServer(this.state.pageSize);
@@ -97,6 +121,10 @@ class App extends React.Component {
 
     componentDidMount() {
         this.loadFromServer(this.state.pageSize);
+
+        client({method: 'GET', path: '/api/seats'}).done(response => {
+            this.setState({seats: response.entity._embedded.seats});
+        });
     }
 
     render() {
@@ -104,12 +132,12 @@ class App extends React.Component {
             <div>
                 <Header/>
                 <PerformanceList performances={this.state.performances}
+                                 seats={this.state.seats}
                                  links={this.state.links}
                                  pageSize={this.state.pageSize}
                                  attributes={this.state.attributes}
-                                 onUpdate={this.state.onUpdate}
+                                 onBookIt={this.onBookIt}
                                  onNavigate={this.onNavigate}
-                                 onDelete={this.onDelete}
                                  updatePageSize={this.updatePageSize}/>
             </div>
         )
@@ -119,7 +147,7 @@ class App extends React.Component {
 class Header extends React.Component{
     render() {
         return (
-            <AppBar position="static">
+            <AppBar  style={{ width: 'auto' }} position="static">
                 <Toolbar>
                     <Typography variant="headline" color="inherit">
                         Seats Booking
@@ -129,33 +157,6 @@ class Header extends React.Component{
         )
     }
 }
-
-class UpdateDialog extends React.Component {
-
-    constructor(props) {
-        super(props);
-        this.handleSubmit = this.handleSubmit.bind(this);
-    }
-
-    handleSubmit(e) {
-        e.preventDefault();
-        var updatedPerformance = {};
-        this.props.attributes.forEach(attribute => {
-            updatedPerformance[attribute] = ReactDOM.findDOMNode(this.refs[attribute]).value.trim();
-        });
-
-        this.props.onUpdate(this.props.performance, updatedPerformance);
-        window.location = "#";
-    }
-
-    render() {
-        return (
-            <div>
-                <Button variant="raised" color="primary" onClick={this.handleSubmit}>Book it</Button>
-            </div>
-        )
-    }
-};
 
 class PerformanceList extends React.Component{
 
@@ -203,9 +204,9 @@ class PerformanceList extends React.Component{
         var performances = this.props.performances.map(performance =>
             <Performance key={performance._links.self.href}
                          performance={performance}
+                         seats={this.props.seats}
                          attributes={this.props.attributes}
-                         onUpdate={this.props.onUpdate}
-                         onDelete={this.props.onDelete}/>
+                         onBookIt={this.props.onBookIt}/>
         );
 
         var navLinks = [];
@@ -259,20 +260,155 @@ class Performance extends React.Component{
 
     render() {
         return (
-            <tr>
-                <td>{this.props.performance.date}</td>
-                <td>{this.props.performance.name}</td>
-                <td>{this.props.performance.venue}</td>
-                <td>{this.props.performance.type}</td>
-                <td>
-                    <UpdateDialog performance={this.props.performance}
-                                      attributes={this.props.attributes}
-                                      onUpdate={this.props.onUpdate}/>
-                </td>
-            </tr>
+            <TableRow>
+                <TableCell>{this.props.performance.date}</TableCell>
+                <TableCell>{this.props.performance.name}</TableCell>
+                <TableCell>{this.props.performance.venue}</TableCell>
+                <TableCell>{this.props.performance.type}</TableCell>
+                <TableCell>
+                    <SeatSelect seats = {this.props.seats}
+                                performance = {this.props.performance}
+                                onBookIt={this.props.onBookIt}/>
+                </TableCell>
+            </TableRow>
         )
     }
 }
+
+class SeatSelect extends React.Component{
+
+    constructor(props) {
+        super(props);
+        this.state = {selectedType: "", selectedRow: "", selectedPlace: ""};
+        this.handleChangeType = this.handleChangeType.bind(this);
+        this.handleChangeRow = this.handleChangeRow.bind(this);
+        this.handleChangePlace = this.handleChangePlace.bind(this);
+        this.handleBookIt = this.handleBookIt.bind(this);
+    }
+
+    handleChangeType(e) {
+        e.preventDefault();
+        this.setState({selectedType: this.refs.locationSelect.value});
+        ReactDOM.findDOMNode(this.refs.rowSelect).value = '';
+        ReactDOM.findDOMNode(this.refs.placeSelect).value = '';
+    }
+
+    handleChangeRow(e) {
+        e.preventDefault();
+        this.setState({selectedRow: this.refs.rowSelect.value});
+        ReactDOM.findDOMNode(this.refs.placeSelect).value = '';
+    }
+
+    handleChangePlace(e) {
+        e.preventDefault();
+        this.setState({selectedPlace: (this.refs.placeSelect.value).split('-')[0].trim()});
+    }
+
+    handleBookIt(e) {
+        e.preventDefault();
+
+        var selectedSeat;
+        var currentPerformance = this.props.performance;
+        var selectedType = this.state.selectedType;
+        var selectedRow = this.state.selectedRow;
+        var selectedPlace = this.state.selectedPlace;
+        this.props.seats.forEach(function (seat) {
+
+            if (seat.performanceName == currentPerformance.name
+                && seat.performanceDate == currentPerformance.date
+                && seat.customer == null
+                && seat.type == selectedType
+                && seat.row == selectedRow
+                && seat.place == selectedPlace) {
+                selectedSeat = seat;
+            }
+        });
+        if (selectedSeat !== undefined) {
+            this.props.onBookIt(selectedSeat);
+            this.render();
+        }
+
+        ReactDOM.findDOMNode(this.refs.placeSelect).value = '';
+    }
+
+    render() {
+        var currentPerformance = this.props.performance;
+
+        var seats = this.props.seats.filter(function (seat) {
+
+            if (seat.customer !== null) return false;
+
+            if ((seat.performanceName == currentPerformance.name) && (seat.performanceDate == currentPerformance.date))
+                return true;
+            else
+                return false;
+        });
+
+        var types = seats.map(seat => seat.type).filter((v, i, a) => a.indexOf(v) === i);
+        var typesOption = types.map(type =>
+            <option>{type}</option>
+        );
+
+        var selectedType = this.state.selectedType;
+        var rows = seats.filter(function (seat) {
+            if (seat.type === selectedType) return true;
+            else return false;
+        }).map(seat => seat.row).filter((v, i, a) => a.indexOf(v) === i);
+
+        var rowsOption = rows.map(row =>
+            <option>{row}</option>
+        );
+
+        var selectedRow = this.state.selectedRow;
+        var places = seats.filter(function (seat) {
+            if ((seat.type === selectedType) && (seat.row === selectedRow)) return true;
+            else return false;
+        });
+
+        var placesOption = places.map(seat =>
+            <option>{seat.place + " - " + seat.price + " rub"}</option>
+        );
+
+        return (
+            <p style={styles.container}>
+                <p style={{ margin: 5}}>
+                    <Typography variant="subheading" color="inherit">
+                        Location
+                    </Typography>
+                    <select ref="locationSelect" onChange={this.handleChangeType}>
+                        <option></option>
+                        {typesOption}
+                    </select>
+                </p>
+
+                <p style={{ margin: 5}}>
+                    <Typography variant="subheading" color="inherit">
+                        Row
+                    </Typography>
+                    <select ref="rowSelect" onChange={this.handleChangeRow}>
+                        <option></option>
+                        {rowsOption}
+                    </select>
+                </p>
+
+                <p style={{ margin: "5"}}>
+                    <Typography variant="subheading" color="inherit">
+                        Place
+                    </Typography>
+                    <select ref="placeSelect" onChange={this.handleChangePlace}>
+                        <option></option>
+                        {placesOption}
+                    </select>
+                </p>
+
+                <Button style={{ margin: 5}} variant="raised" color="primary" onClick={this.handleBookIt}>
+                    Book it
+                </Button>
+            </p>
+        )
+    }
+}
+
 
 ReactDOM.render(
     <App />,

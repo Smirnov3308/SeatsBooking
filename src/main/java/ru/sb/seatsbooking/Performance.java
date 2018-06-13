@@ -14,22 +14,16 @@ public class Performance {
     private String venue;
     private String type;
 
-    private String[] users;
-
     private Performance() {}
-
-    public Performance(String time, String name, String venue, String type,  String... users) {
-        this.date = time;
-        this.name = name;
-        this.venue = venue;
-        this.type = type;
-        this.users = users;
-    }
 
     public Performance(String time, String name, String venue, String type) {
         this.date = time;
         this.name = name;
         this.venue = venue;
         this.type = type;
+    }
+
+    public Performance(String venue) {
+        this.venue = venue;
     }
 }

@@ -70,6 +70,11 @@
 	        marginBottom: 10,
 	        height: 'auto',
 	        overflowY: 'auto'
+	    },
+	
+	    container: {
+	        display: 'flex',
+	        padding: 5
 	    }
 	};
 	
@@ -81,10 +86,10 @@
 	
 	        var _this = _possibleConstructorReturn(this, (App.__proto__ || Object.getPrototypeOf(App)).call(this, props));
 	
-	        _this.state = { performances: [], attributes: [], pageSize: 10, links: {} };
+	        _this.state = { performances: [], seats: [], attributes: [], pageSize: 5, links: {} };
 	        _this.updatePageSize = _this.updatePageSize.bind(_this);
 	        _this.onDelete = _this.onDelete.bind(_this);
-	        _this.onUpdate = _this.onUpdate.bind(_this);
+	        _this.onBookIt = _this.onBookIt.bind(_this);
 	        _this.onNavigate = _this.onNavigate.bind(_this);
 	        return _this;
 	    }
@@ -133,24 +138,46 @@
 	            });
 	        }
 	    }, {
-	        key: 'onDelete',
-	        value: function onDelete(performance) {
+	        key: 'onBookIt',
+	        value: function onBookIt(selectedSeat) {
 	            var _this4 = this;
 	
+	            follow(client, root, ['seats']).done(function (response) {
+	                client({
+	                    method: 'POST',
+	                    path: response.entity._links.self.href,
+	                    entity: selectedSeat,
+	                    headers: { 'Content-Type': 'application/json' }
+	                });
+	                client({ method: 'GET', path: '/api/seats' }).done(function (response) {
+	                    _this4.setState({ seats: response.entity._embedded.seats });
+	                });
+	            }, function (response) {
+	                if (response.status.code === 404) {
+	                    alert('Error, seat already taken');
+	                }
+	            });
+	            client({ method: 'DELETE', path: selectedSeat._links.self.href });
+	        }
+	    }, {
+	        key: 'onDelete',
+	        value: function onDelete(performance) {
+	            var _this5 = this;
+	
 	            client({ method: 'DELETE', path: performance._links.self.href }).done(function (response) {
-	                _this4.loadFromServer(_this4.state.pageSize);
+	                _this5.loadFromServer(_this5.state.pageSize);
 	            });
 	        }
 	    }, {
 	        key: 'onNavigate',
 	        value: function onNavigate(navUri) {
-	            var _this5 = this;
+	            var _this6 = this;
 	
 	            client({ method: 'GET', path: navUri }).done(function (performanceCollection) {
-	                _this5.setState({
+	                _this6.setState({
 	                    performances: performanceCollection.entity._embedded.performances,
-	                    attributes: _this5.state.attributes,
-	                    pageSize: _this5.state.pageSize,
+	                    attributes: _this6.state.attributes,
+	                    pageSize: _this6.state.pageSize,
 	                    links: performanceCollection.entity._links
 	                });
 	            });
@@ -165,7 +192,13 @@
 	    }, {
 	        key: 'componentDidMount',
 	        value: function componentDidMount() {
+	            var _this7 = this;
+	
 	            this.loadFromServer(this.state.pageSize);
+	
+	            client({ method: 'GET', path: '/api/seats' }).done(function (response) {
+	                _this7.setState({ seats: response.entity._embedded.seats });
+	            });
 	        }
 	    }, {
 	        key: 'render',
@@ -175,12 +208,12 @@
 	                null,
 	                React.createElement(Header, null),
 	                React.createElement(PerformanceList, { performances: this.state.performances,
+	                    seats: this.state.seats,
 	                    links: this.state.links,
 	                    pageSize: this.state.pageSize,
 	                    attributes: this.state.attributes,
-	                    onUpdate: this.state.onUpdate,
+	                    onBookIt: this.onBookIt,
 	                    onNavigate: this.onNavigate,
-	                    onDelete: this.onDelete,
 	                    updatePageSize: this.updatePageSize })
 	            );
 	        }
@@ -203,7 +236,7 @@
 	        value: function render() {
 	            return React.createElement(
 	                _core.AppBar,
-	                { position: 'static' },
+	                { style: { width: 'auto' }, position: 'static' },
 	                React.createElement(
 	                    _core.Toolbar,
 	                    null,
@@ -220,54 +253,8 @@
 	    return Header;
 	}(React.Component);
 	
-	var UpdateDialog = function (_React$Component3) {
-	    _inherits(UpdateDialog, _React$Component3);
-	
-	    function UpdateDialog(props) {
-	        _classCallCheck(this, UpdateDialog);
-	
-	        var _this7 = _possibleConstructorReturn(this, (UpdateDialog.__proto__ || Object.getPrototypeOf(UpdateDialog)).call(this, props));
-	
-	        _this7.handleSubmit = _this7.handleSubmit.bind(_this7);
-	        return _this7;
-	    }
-	
-	    _createClass(UpdateDialog, [{
-	        key: 'handleSubmit',
-	        value: function handleSubmit(e) {
-	            var _this8 = this;
-	
-	            e.preventDefault();
-	            var updatedPerformance = {};
-	            this.props.attributes.forEach(function (attribute) {
-	                updatedPerformance[attribute] = ReactDOM.findDOMNode(_this8.refs[attribute]).value.trim();
-	            });
-	
-	            this.props.onUpdate(this.props.performance, updatedPerformance);
-	            window.location = "#";
-	        }
-	    }, {
-	        key: 'render',
-	        value: function render() {
-	            return React.createElement(
-	                'div',
-	                null,
-	                React.createElement(
-	                    _core.Button,
-	                    { variant: 'raised', color: 'primary', onClick: this.handleSubmit },
-	                    'Book it'
-	                )
-	            );
-	        }
-	    }]);
-	
-	    return UpdateDialog;
-	}(React.Component);
-	
-	;
-	
-	var PerformanceList = function (_React$Component4) {
-	    _inherits(PerformanceList, _React$Component4);
+	var PerformanceList = function (_React$Component3) {
+	    _inherits(PerformanceList, _React$Component3);
 	
 	    function PerformanceList(props) {
 	        _classCallCheck(this, PerformanceList);
@@ -325,9 +312,9 @@
 	            var performances = this.props.performances.map(function (performance) {
 	                return React.createElement(Performance, { key: performance._links.self.href,
 	                    performance: performance,
+	                    seats: _this10.props.seats,
 	                    attributes: _this10.props.attributes,
-	                    onUpdate: _this10.props.onUpdate,
-	                    onDelete: _this10.props.onDelete });
+	                    onBookIt: _this10.props.onBookIt });
 	            });
 	
 	            var navLinks = [];
@@ -422,8 +409,8 @@
 	    return PerformanceList;
 	}(React.Component);
 	
-	var Performance = function (_React$Component5) {
-	    _inherits(Performance, _React$Component5);
+	var Performance = function (_React$Component4) {
+	    _inherits(Performance, _React$Component4);
 	
 	    function Performance(props) {
 	        _classCallCheck(this, Performance);
@@ -435,40 +422,215 @@
 	        key: 'render',
 	        value: function render() {
 	            return React.createElement(
-	                'tr',
+	                _core.TableRow,
 	                null,
 	                React.createElement(
-	                    'td',
+	                    _core.TableCell,
 	                    null,
 	                    this.props.performance.date
 	                ),
 	                React.createElement(
-	                    'td',
+	                    _core.TableCell,
 	                    null,
 	                    this.props.performance.name
 	                ),
 	                React.createElement(
-	                    'td',
+	                    _core.TableCell,
 	                    null,
 	                    this.props.performance.venue
 	                ),
 	                React.createElement(
-	                    'td',
+	                    _core.TableCell,
 	                    null,
 	                    this.props.performance.type
 	                ),
 	                React.createElement(
-	                    'td',
+	                    _core.TableCell,
 	                    null,
-	                    React.createElement(UpdateDialog, { performance: this.props.performance,
-	                        attributes: this.props.attributes,
-	                        onUpdate: this.props.onUpdate })
+	                    React.createElement(SeatSelect, { seats: this.props.seats,
+	                        performance: this.props.performance,
+	                        onBookIt: this.props.onBookIt })
 	                )
 	            );
 	        }
 	    }]);
 	
 	    return Performance;
+	}(React.Component);
+	
+	var SeatSelect = function (_React$Component5) {
+	    _inherits(SeatSelect, _React$Component5);
+	
+	    function SeatSelect(props) {
+	        _classCallCheck(this, SeatSelect);
+	
+	        var _this12 = _possibleConstructorReturn(this, (SeatSelect.__proto__ || Object.getPrototypeOf(SeatSelect)).call(this, props));
+	
+	        _this12.state = { selectedType: "", selectedRow: "", selectedPlace: "" };
+	        _this12.handleChangeType = _this12.handleChangeType.bind(_this12);
+	        _this12.handleChangeRow = _this12.handleChangeRow.bind(_this12);
+	        _this12.handleChangePlace = _this12.handleChangePlace.bind(_this12);
+	        _this12.handleBookIt = _this12.handleBookIt.bind(_this12);
+	        return _this12;
+	    }
+	
+	    _createClass(SeatSelect, [{
+	        key: 'handleChangeType',
+	        value: function handleChangeType(e) {
+	            e.preventDefault();
+	            this.setState({ selectedType: this.refs.locationSelect.value });
+	            ReactDOM.findDOMNode(this.refs.rowSelect).value = '';
+	            ReactDOM.findDOMNode(this.refs.placeSelect).value = '';
+	        }
+	    }, {
+	        key: 'handleChangeRow',
+	        value: function handleChangeRow(e) {
+	            e.preventDefault();
+	            this.setState({ selectedRow: this.refs.rowSelect.value });
+	            ReactDOM.findDOMNode(this.refs.placeSelect).value = '';
+	        }
+	    }, {
+	        key: 'handleChangePlace',
+	        value: function handleChangePlace(e) {
+	            e.preventDefault();
+	            this.setState({ selectedPlace: this.refs.placeSelect.value.split('-')[0].trim() });
+	        }
+	    }, {
+	        key: 'handleBookIt',
+	        value: function handleBookIt(e) {
+	            e.preventDefault();
+	
+	            var selectedSeat;
+	            var currentPerformance = this.props.performance;
+	            var selectedType = this.state.selectedType;
+	            var selectedRow = this.state.selectedRow;
+	            var selectedPlace = this.state.selectedPlace;
+	            this.props.seats.forEach(function (seat) {
+	
+	                if (seat.performanceName == currentPerformance.name && seat.performanceDate == currentPerformance.date && seat.customer == null && seat.type == selectedType && seat.row == selectedRow && seat.place == selectedPlace) {
+	                    selectedSeat = seat;
+	                }
+	            });
+	            if (selectedSeat !== undefined) {
+	                this.props.onBookIt(selectedSeat);
+	                this.render();
+	            }
+	
+	            ReactDOM.findDOMNode(this.refs.placeSelect).value = '';
+	        }
+	    }, {
+	        key: 'render',
+	        value: function render() {
+	            var currentPerformance = this.props.performance;
+	
+	            var seats = this.props.seats.filter(function (seat) {
+	
+	                if (seat.customer !== null) return false;
+	
+	                if (seat.performanceName == currentPerformance.name && seat.performanceDate == currentPerformance.date) return true;else return false;
+	            });
+	
+	            var types = seats.map(function (seat) {
+	                return seat.type;
+	            }).filter(function (v, i, a) {
+	                return a.indexOf(v) === i;
+	            });
+	            var typesOption = types.map(function (type) {
+	                return React.createElement(
+	                    'option',
+	                    null,
+	                    type
+	                );
+	            });
+	
+	            var selectedType = this.state.selectedType;
+	            var rows = seats.filter(function (seat) {
+	                if (seat.type === selectedType) return true;else return false;
+	            }).map(function (seat) {
+	                return seat.row;
+	            }).filter(function (v, i, a) {
+	                return a.indexOf(v) === i;
+	            });
+	
+	            var rowsOption = rows.map(function (row) {
+	                return React.createElement(
+	                    'option',
+	                    null,
+	                    row
+	                );
+	            });
+	
+	            var selectedRow = this.state.selectedRow;
+	            var places = seats.filter(function (seat) {
+	                if (seat.type === selectedType && seat.row === selectedRow) return true;else return false;
+	            });
+	
+	            var placesOption = places.map(function (seat) {
+	                return React.createElement(
+	                    'option',
+	                    null,
+	                    seat.place + " - " + seat.price + " rub"
+	                );
+	            });
+	
+	            return React.createElement(
+	                'p',
+	                { style: styles.container },
+	                React.createElement(
+	                    'p',
+	                    { style: { margin: 5 } },
+	                    React.createElement(
+	                        _core.Typography,
+	                        { variant: 'subheading', color: 'inherit' },
+	                        'Location'
+	                    ),
+	                    React.createElement(
+	                        'select',
+	                        { ref: 'locationSelect', onChange: this.handleChangeType },
+	                        React.createElement('option', null),
+	                        typesOption
+	                    )
+	                ),
+	                React.createElement(
+	                    'p',
+	                    { style: { margin: 5 } },
+	                    React.createElement(
+	                        _core.Typography,
+	                        { variant: 'subheading', color: 'inherit' },
+	                        'Row'
+	                    ),
+	                    React.createElement(
+	                        'select',
+	                        { ref: 'rowSelect', onChange: this.handleChangeRow },
+	                        React.createElement('option', null),
+	                        rowsOption
+	                    )
+	                ),
+	                React.createElement(
+	                    'p',
+	                    { style: { margin: "5" } },
+	                    React.createElement(
+	                        _core.Typography,
+	                        { variant: 'subheading', color: 'inherit' },
+	                        'Place'
+	                    ),
+	                    React.createElement(
+	                        'select',
+	                        { ref: 'placeSelect', onChange: this.handleChangePlace },
+	                        React.createElement('option', null),
+	                        placesOption
+	                    )
+	                ),
+	                React.createElement(
+	                    _core.Button,
+	                    { style: { margin: 5 }, variant: 'raised', color: 'primary', onClick: this.handleBookIt },
+	                    'Book it'
+	                )
+	            );
+	        }
+	    }]);
+	
+	    return SeatSelect;
 	}(React.Component);
 	
 	ReactDOM.render(React.createElement(App, null), document.getElementById('react'));

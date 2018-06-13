@@ -4,7 +4,7 @@
   "description": "Project for booking seats",
   "repository": {
     "type": "git",
-    "url": "git@github.com:spring-guides/tut-react-and-spring-data-rest.git"
+    "url": "git@github.com/Smirnov3308/SeatsBooking.git"
   },
   "keywords": [
     "rest",
@@ -20,12 +20,13 @@
   },
   "homepage": "",
   "dependencies": {
+    "@babel/preset-env": "^7.0.0-beta.49",
     "@material-ui/core": "^1.1.0",
     "@material-ui/icons": "^1.1.0",
     "react": "^15.3.2",
     "react-dom": "^15.3.2",
     "rest": "^1.3.1",
-    "webpack": "^1.12.2"
+    "webpack": "^1.15.0"
   },
   "scripts": {
     "watch": "webpack --watch -d"
@@ -35,6 +36,7 @@
     "babel-loader": "^6.2.7",
     "babel-polyfill": "^6.16.0",
     "babel-preset-es2015": "^6.18.0",
-    "babel-preset-react": "^6.16.0"
+    "babel-preset-react": "^6.16.0",
+    "webpack": "^1.15.0"
   }
 }
